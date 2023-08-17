@@ -19,7 +19,8 @@ int activeThread;
 pthread_mutex_t g_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t  g_cond  = PTHREAD_COND_INITIALIZER;
 
-
+void threadsCreate(threadParams_t *params);
+void waitThreads(threadParams_t *params);
 void *workerThread(void *x);
 void signalHandler(int signal);
 
@@ -28,25 +29,33 @@ int main(){
     threadParams_t * threadParameter = (threadParams_t *)malloc(sizeof(threadParams_t));
 
     signal(SIGINT,signalHandler);
-    signal(SIGQUIT,signalHandler);
+    signal(SIGTSTP,signalHandler);
 
-    for(int i=0 ;i<THREAD_COUNT ;i++){
-        threadParameter->threadNumber[i] = i+1;
-        if(pthread_create(&threadParameter->threads[i],NULL,workerThread,&threadParameter->threadNumber[i]) != 0){
-            printf("thread create error\r\n");
-        }
-    }
-    for(int i=0 ;i<THREAD_COUNT ;i++){
-        if(pthread_join(threadParameter->threads[i],NULL) != 0){
-            printf("thread join error\r\n");
-        }
-    }
+    threadsCreate(threadParameter);
+    waitThreads(threadParameter);
     
     free(threadParameter);
     pthread_cond_destroy(&g_cond);
     pthread_mutex_destroy(&g_mutex);
 
 
+}
+
+void threadsCreate(threadParams_t *params){
+    for(int i=0 ;i<THREAD_COUNT ;i++){
+        params->threadNumber[i] = i+1;
+        if(pthread_create(&params->threads[i],NULL,workerThread,&params->threadNumber[i]) != 0){
+            printf("thread create error\r\n");
+        }
+    }
+}
+
+void waitThreads(threadParams_t *params){
+    for(int i=0 ;i<THREAD_COUNT ;i++){
+        if(pthread_join(params->threads[i],NULL) != 0){
+            printf("thread join error\r\n");
+        }
+    }
 }
 
 void *workerThread(void *x){
@@ -78,7 +87,7 @@ void signalHandler(int signal) {
     pthread_cond_broadcast(&g_cond);
     if (signal == SIGINT) {
         activeThread = 1;
-    } else if (signal == SIGQUIT) {
+    } else if (signal == SIGTSTP) {
         activeThread = 2;
     }
     pthread_mutex_unlock(&g_mutex);
